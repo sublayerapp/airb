@@ -21,12 +21,12 @@ module Airb
         when "anthropic"
           VSM::Drivers::Anthropic::AsyncDriver.new(
             api_key: ENV.fetch("ANTHROPIC_API_KEY"),
-            model:   ENV["AIRB_MODEL"] || "claude-3-5-sonnet-latest"
+            model:   ENV["AIRB_MODEL"] || "claude-4-sonnet-latest"
           )
         when "gemini"
           VSM::Drivers::Gemini::AsyncDriver.new(
             api_key: ENV.fetch("GEMINI_API_KEY"),
-            model:   ENV["AIRB_MODEL"] || "gemini-2.0-flash-001"
+            model:   ENV["AIRB_MODEL"] || "gemini-2.5-flash"
           )
         else
           VSM::Drivers::OpenAI::AsyncDriver.new(

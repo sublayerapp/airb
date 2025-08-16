@@ -7,11 +7,14 @@ require_relative "airb/ports/chat_tty"
 module Airb
   class CLI
     def self.start
+      $stdout.sync = true
+      $stderr.sync = true
       capsule = Airb::Organism.build
+      hub = nil
 
       # Optional: live visualizer (Lens) from VSM
       if ENV["VSM_LENS"] == "1"
-        VSM::Lens.attach!(
+        hub = VSM::Lens.attach!(
           capsule,
           host: "127.0.0.1",
           port: (ENV["VSM_LENS_PORT"] || 9292).to_i,

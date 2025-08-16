@@ -3,7 +3,8 @@
     "allow": [
       "Bash(rake spec:*)",
       "Bash(bundle install:*)",
-      "Bash(bundle exec:*)"
+      "Bash(bundle exec:*)",
+      "Bash(gem install:*)"
     ],
     "deny": [],
     "ask": []

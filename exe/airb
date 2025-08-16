@@ -4,12 +4,12 @@
 # --- Keep this CLI independent of any project's Bundler context ----------------
 # If someone runs `airb` inside a Bundler-managed project, remove Bundler hooks
 # so we resolve *this gem’s* dependencies, not the app’s Gemfile.
-ENV.delete('BUNDLE_GEMFILE')
-ENV.delete('BUNDLE_BIN_PATH')
-if (rubyopt = ENV['RUBYOPT'])
-  ENV['RUBYOPT'] = rubyopt.split.reject { |x| x.include?('bundler/setup') }.join(' ')
-end
-ENV.delete('RUBYGEMS_GEMDEPS')  # avoid implicit Gemfile activation
+# ENV.delete('BUNDLE_GEMFILE')
+# ENV.delete('BUNDLE_BIN_PATH')
+# if (rubyopt = ENV['RUBYOPT'])
+#   ENV['RUBYOPT'] = rubyopt.split.reject { |x| x.include?('bundler/setup') }.join(' ')
+# end
+# ENV.delete('RUBYGEMS_GEMDEPS')  # avoid implicit Gemfile activation
 
 # No: require "bundler/setup"  (that would lock us to the cwd's Gemfile!)
 # -----------------------------------------------------------------------------
