@@ -8,8 +8,14 @@ Gem::Specification.new do |spec|
   spec.authors = ["Scott Werner"]
   spec.email = ["scott@sublayer.com"]
 
-  spec.summary = "TODO: Write a short summary, because RubyGems requires one."
-  spec.description = "TODO: Write a longer description or delete this line."
+  spec.summary = "CLI-based programming agent for Ruby with VSM architecture"
+  spec.description = <<-DESC
+    airb is an open-source CLI programming agent that helps developers build software
+    using modern LLMs (OpenAI, Anthropic, Gemini). Built on a clean, composable architecture 
+    inspired by Stafford Beer's Viable System Model, it features streaming responses, structured 
+    tool calling, built-in file operations, and optional web-based observability. Designed for 
+    hackability with small objects, clear seams, and UNIXy ergonomics.
+  DESC
   spec.homepage = "https://github.com/sublayerapp/airb"
   spec.license = "MIT"
   spec.required_ruby_version = ">= 3.4"
