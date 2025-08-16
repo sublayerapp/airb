@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rake spec:*)",
+      "Bash(bundle install:*)",
+      "Bash(bundle exec:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

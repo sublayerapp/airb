@@ -1,0 +1,306 @@
+
+airb / VSM — llms.txt
+=====================
+
+Purpose of this file
+--------------------
+Give any LLM or code-editing agent **everything it needs** to:
+1) understand what `airb` is and how it works,
+2) make **safe, minimal edits**,
+3) add or modify tools and sub-agents (capsules),
+4) run and validate the project locally,
+5) keep behavior consistent across OpenAI / Anthropic / Gemini providers,
+6) use the built-in observability (Lens) to reason about live behavior.
+
+This file summarizes architecture, invariants, directories, message semantics, configuration, and editing protocols.
+
+
+High-level mission
+------------------
+- **Why**: Explore a clean, recursive architecture for AI agents grounded in cybernetics (Stafford Beer’s Viable System Model), and ship a practical **open-source CLI programming agent** for Rubyists.
+- **Who**: Ruby developers, agent researchers, educators, and tool authors.
+- **What**: A terminal chatbot that streams answers and uses **structured tool calls** to list/read/edit files in a workspace. Built on the `vsm` runtime.
+
+
+Project at a glance
+-------------------
+- Language: Ruby 3.2+
+- Runtime: `vsm` gem (async reactor, Capsules, VSM systems, tools-as-capsules)
+- Providers (from `vsm`): OpenAI (`DriverAsync`), Anthropic (`DriverAsync`), Gemini (`DriverAsync`)
+- Core tools (capsules): `list_files`, `read_file`, `edit_file`
+- Observability: JSONL ledger + optional **Lens** (local SSE web app)
+- Terminal UI: `ChatTTY` (streams deltas, handles confirmations)
+- Concurrency: async fibers; tools choose execution mode (`:fiber` / `:thread`)
+
+
+Directory layout (airb)
+-----------------------
+```
+bin/airb                       # executable
+lib/airb.rb                    # CLI entry; starts capsule + ports + optional Lens
+lib/airb/organism.rb           # builds the top-level capsule via VSM::DSL
+
+lib/airb/ports/chat_tty.rb     # terminal port (streaming, confirmations)
+
+lib/airb/systems/coordination.rb
+lib/airb/systems/governance.rb
+lib/airb/systems/identity.rb
+lib/airb/systems/intelligence.rb
+lib/airb/systems/monitoring.rb # thin wrapper over VSM::Monitoring
+
+lib/airb/tools/fs/list_files.rb
+lib/airb/tools/fs/read_file.rb
+lib/airb/tools/fs/edit_file.rb
+
+spec/integration_spec.rb       # example integration (fake driver)
+```
+
+Do not remove these files; they define the public behavior expected by users and tests.
+
+
+Core concepts (VSM + Capsules)
+------------------------------
+- **Capsule**: a self-contained agent unit with 5 named systems (roles):
+  - **Identity**: name/invariants; escalation hooks.
+  - **Governance**: **safety** (sandbox, confirms, budgets, policies).
+  - **Coordination**: **scheduling/floor** control, turn lifecycle.
+  - **Intelligence**: connects to LLM driver, manages conversation, streams output, triggers tools.
+  - **Operations**: dispatches **tools** (child capsules); parallel execution.
+
+- **Tools as Capsules**:
+  - Implement class inheriting `VSM::ToolCapsule`.
+  - Declare `tool_name`, `tool_description`, `tool_schema` (JSON Schema).
+  - Implement `#run(args)` and optional `#execution_mode` (`:fiber` or `:thread`).
+  - Tools automatically expose cross-provider descriptors via `Descriptor#to_openai_tool / #to_anthropic_tool / #to_gemini_tool`.
+
+- **Ports**:
+  - External adapters (CLI, Lens). Ports subscribe to the bus and render messages.
+
+- **Recursion**:
+  - Any capsule can itself contain sub-capsules (planning, editor, tester). Sub-agents can also be exposed as a **single tool** to the parent via `ActsAsTool`.
+
+
+Message bus semantics
+---------------------
+All activity flows through the async bus as `VSM::Message` structs:
+
+- `kind` (enum used by systems & ports):
+  - `:user` — user input from CLI.
+  - `:assistant_delta` — streaming text tokens to terminal.
+  - `:assistant` — final turn text.
+  - `:tool_call` — Intelligence wants Operations to run a tool.
+  - `:tool_result` — result string from a tool (routed back to Intelligence).
+  - `:confirm_request` / `:confirm_response` — Governance confirmation loop.
+  - `:policy`, `:audit`, `:progress` — optional advisories/logs.
+- `meta`:
+  - `session_id` (required for multi-turn coherence + floor control).
+  - (optional) `tool`, `elapsed_ms`, `args_size`, etc.
+- `corr_id`:
+  - Correlates `:tool_call` with its `:tool_result`.
+- `path`:
+  - Lane like `[:airb, :operations, :read_file]` (Lens uses this for swimlanes).
+
+**Turn lifecycle**:
+1) Port emits `:user`.
+2) Intelligence calls provider driver → streams `:assistant_delta` → may emit `:tool_calls`.
+3) Operations runs requested tools concurrently → `:tool_result` messages.
+4) Intelligence continues with results → emits final `:assistant`.
+5) Coordination marks turn end (so Port can unblock and prompt again).
+
+
+Provider abstraction (drivers live in vsm)
+------------------------------------------
+airb is provider-agnostic; drivers normalize to three events:
+
+- `:assistant_delta` (streaming text)
+- `:assistant_final` (final text)
+- `:tool_calls` (array of `{ id:, name:, arguments: Hash }`)
+
+Differences:
+- **OpenAI**: messages include a `system` message; `tools` with `function` schema; SSE streaming.
+- **Anthropic**: `system` provided in request header/body; `tool_use` streamed via `input_json_delta` fragments; we buffer & emit a single `:tool_calls` event per block.
+- **Gemini**: `functionDeclarations` + `functionCall/functionResponse`; MVP driver is non-streaming; you can add streaming later.
+
+
+Governance rules (safety)
+-------------------------
+- airb operates in a **workspace sandbox** (Git root or CWD). Governance validates file paths.
+- `edit_file` requires **interactive confirmation** via `:confirm_request/response`.
+- Future: token/time budgets, rate limits, diff previews, undo.
+
+**LLM editing constraint**: Do not weaken path checks, confirms, or invariants without an explicit instruction in a change request.
+
+
+CLI behavior (ChatTTY)
+----------------------
+- Reads stdin lines, emits `:user` with a unique `session_id`.
+- Streams `:assistant_delta` inline; prints `:assistant` on completion.
+- Prompts for confirmation on `:confirm_request`, echoes decision as `:confirm_response`.
+- Hands off turn control to Coordination (waits for final `:assistant` before re-prompting).
+
+
+Observability (Monitoring + Lens)
+---------------------------------
+- JSONL ledger: `.vsm.log.jsonl` (one line per message).
+- Lens: local SSE web app (bundled in `vsm`).
+  - Enable with `VSM_LENS=1` when running airb.
+  - URL: `http://127.0.0.1:9292`
+  - Shows timeline, sessions, tool calls/results, lanes by `path`.
+
+Make events useful: include `meta.session_id`, `path`, and `meta.tool` (for calls/results).
+
+
+Configuration (env vars)
+------------------------
+```
+AIRB_PROVIDER   = openai | anthropic | gemini   (default: openai)
+AIRB_MODEL      = provider-specific model name
+OPENAI_API_KEY  = ...
+ANTHROPIC_API_KEY = ...
+GEMINI_API_KEY  = ...
+VSM_LENS        = 1 to enable web visualizer (default off)
+VSM_LENS_PORT   = 9292 (default)
+VSM_LENS_TOKEN  = optional access token for Lens (append ?token=...)
+```
+
+Workspace: if `git rev-parse --show-toplevel` fails, airb uses `Dir.pwd`.
+
+
+How to add a new tool (capsule)
+-------------------------------
+**Goal**: minimal diff, high cohesion, governance-aware.
+
+1) Create a file, e.g. `lib/airb/tools/search_repo.rb`:
+
+```ruby
+class SearchRepo < VSM::ToolCapsule
+  tool_name "search_repo"
+  tool_description "Search files for a regex under optional path"
+  tool_schema({
+    type:"object",
+    properties:{ path:{type:"string"}, pattern:{type:"string"} },
+    required:["pattern"]
+  })
+
+  def execution_mode = :thread # CPU-ish scan; allow parallelism
+
+  def run(args)
+    root = governance.send(:safe_path, args["path"] || ".")
+    rx   = Regexp.new(args["pattern"])
+    matches = Dir.glob("#{root}/**/*", File::FNM_DOTMATCH)
+      .select { |p| File.file?(p) }
+      .flat_map do |file|
+        lines = File.readlines(file, chomp:true, encoding:"UTF-8") rescue []
+        lines.each_with_index.filter_map { |line,i| "#{file}:#{i+1}:#{line}" if rx.match?(line) }
+      end
+    matches.join("\n")
+  end
+end
+```
+
+2) Register it in `lib/airb/organism.rb` under `operations`:
+
+```ruby
+operations do
+  capsule :search_repo, class: SearchRepo
+end
+```
+
+3) (Optional) Add a spec covering one happy path.
+
+No changes required in `Intelligence`—it auto-advertises all tool descriptors to the provider driver.
+
+
+How to add a sub-agent (recursive capsule)
+------------------------------------------
+Use this when a feature needs planning/verification steps (e.g., “Editor” agent).
+
+1) Create a capsule with its own systems (ops/coord/intel/gov/identity) under `lib/airb/capsules/editor/...`.
+2) If you want to expose it to the parent as a single tool, `include VSM::ActsAsTool` and implement `#run(args)` that orchestrates the inner loop and returns a result string.
+3) Register the capsule under `operations`. The parent will see it as a tool; the Lens will show its lane via the `path` hierarchy.
+
+
+Testing guidance
+----------------
+- **Unit**: pure Ruby classes (tools, governance checks) should be tested without any network.
+- **Integration**: use a **fake driver** that emits `:tool_calls` then `:assistant_final`. See `spec/integration_spec.rb`.
+- **Contract**: if you change message kinds/meta/path, update both the Port and tests.
+- **Style**: run `rubocop` if present; keep methods small; be explicit with names (POODR/SOLID).
+
+
+Troubleshooting
+---------------
+- No streaming: Gemini driver is MVP non-streaming; use OpenAI/Anthropic for streaming.
+- “Path escapes workspace”: Governance blocked unsafe path; run in correct repo or update the rule intentionally.
+- No tool calls: Ensure provider/model supports tools; keys set correctly.
+- Lens empty: Start with `VSM_LENS=1` and open `http://127.0.0.1:9292`.
+
+
+Roadmap (safe to implement)
+---------------------------
+- Diff preview & undo for `edit_file` confirmations.
+- Concurrency limits (Async semaphores) per tool family.
+- Gemini streaming endpoint / Live API support.
+- MCP client/server ports (map `ActsAsTool` to MCP tool specs).
+- Replay mode in Lens (read JSONL and scrub timeline).
+- “Command mode”: `airb -e "message"` for one-shot runs.
+
+
+LLM Edit Protocol (LEP)
+-----------------------
+**Use this when applying automated changes.**
+
+1) **Understand the goal**: restate the change request; identify files to touch.
+2) **Plan minimal diffs**: prefer small, reversible edits; keep public method signatures stable unless requested.
+3) **Safety first**:
+   - Never weaken Governance sandbox/confirm flows without explicit instruction.
+   - Keep `session_id`, `corr_id`, `path` and message kinds consistent.
+4) **Make the change**:
+   - Edit only necessary files.
+   - For new tools, add a capsule file + register in `organism.rb`.
+   - For provider changes, modify `organism.rb` env switch or the `vsm` drivers (not here).
+5) **Update docs/tests**:
+   - Adjust README if behavior changes.
+   - Add/modify a spec (happy path).
+6) **Self-check**:
+   - Static scan for obvious errors (names, requires).
+   - Ensure `airb` still runs with `OPENAI_API_KEY=...` in a repo.
+7) **Commit guidance**:
+   - Conventional message: `feat(tool): add search_repo capsule` / `fix(intel): avoid duplicate tool_calls`.
+   - Include a brief rationale.
+
+If conflicted, prefer **safer behavior** (ask for confirmation, maintain invariants) over convenience.
+
+
+Quick reference: critical files
+-------------------------------
+- Entry: `bin/airb`, `lib/airb.rb`
+- Organism wiring: `lib/airb/organism.rb`
+- CLI Port: `lib/airb/ports/chat_tty.rb`
+- Intelligence: `lib/airb/systems/intelligence.rb`
+- Governance: `lib/airb/systems/governance.rb`
+- Coordination: `lib/airb/systems/coordination.rb`
+- Tools: `lib/airb/tools/**.rb`
+- Tests: `spec/**`
+
+
+Example prompts to drive changes (for humans)
+---------------------------------------------
+- “Add a tool to search the repo for `TODO` and return matches with file:line.”
+- “Require confirmation for files larger than 1 MB when reading them.”
+- “Expose an `editor` sub-agent capsule that plans a small patch then applies it via `edit_file`.”
+
+
+Glossary
+--------
+- **Capsule**: a composable agent component with the five VSM systems.
+- **Tool**: a capsule exposed to the LLM via a JSON schema descriptor.
+- **Turn**: a user→assistant exchange, possibly with tool calls.
+- **Floor**: turn ownership; Coordination keeps output ordered per session.
+- **Lens**: local web visualizer (SSE) for live events.
+- **Descriptor**: the object that maps a tool to provider-specific shapes.
+
+
+End
+---
+If you (the LLM) need to modify behavior, follow **LLM Edit Protocol**, keep deltas small, and preserve the message semantics and Governance guarantees. 
