@@ -41,8 +41,6 @@ Gem::Specification.new do |spec|
 
   spec.add_development_dependency "rspec", "~> 3.13"
   spec.add_development_dependency "async-rspec", "~> 1.17"
-  spec.add_development_dependency "rubocop", "~> 1.79"
-  spec.add_development_dependency "pry"
   # Uncomment to register a new dependency of your gem
   # spec.add_dependency "example-gem", "~> 1.0"
 
