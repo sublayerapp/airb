@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a Ruby gem called "airb" - an AI-powered programming assistant that runs in a terminal chat interface. It uses the VSM (Virtual State Machine) framework to coordinate between different systems including intelligence, governance, coordination, identity, and monitoring.
+This is a Ruby gem called "airb" - an AI-powered programming assistant that runs in a terminal chat interface. It uses the VSM (Viable System Model) architecture to coordinate between different systems including intelligence, governance, coordination, identity, and monitoring.
 
 ## Development Commands
 
@@ -14,7 +14,7 @@ This is a Ruby gem called "airb" - an AI-powered programming assistant that runs
 - `bundle exec rake install` - Install gem locally
 - `rake` or `rake default` - Run both tests and RuboCop
 - `rake rubocop` - Run RuboCop linter
-- `bin/airb` - Run the airb CLI directly
+- `exe/airb` - Run the airb CLI directly
 
 ## Architecture
 
@@ -49,6 +49,6 @@ File system tools in `lib/airb/tools/fs/`:
 ## Code Style
 
 - Uses RuboCop with double quotes for strings
-- Ruby 3.1+ required
+- Ruby 3.4+ required
 - Frozen string literals enabled throughout
 - VSM framework patterns for system composition

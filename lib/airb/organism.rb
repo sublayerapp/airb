@@ -21,7 +21,7 @@ module Airb
         when "anthropic"
           VSM::Drivers::Anthropic::AsyncDriver.new(
             api_key: ENV.fetch("ANTHROPIC_API_KEY"),
-            model:   ENV["AIRB_MODEL"] || "claude-4-sonnet-latest"
+            model:   ENV["AIRB_MODEL"] || "claude-sonnet-4-0"
           )
         when "gemini"
           VSM::Drivers::Gemini::AsyncDriver.new(
@@ -31,7 +31,7 @@ module Airb
         else
           VSM::Drivers::OpenAI::AsyncDriver.new(
             api_key: ENV.fetch("OPENAI_API_KEY"),
-            model:   ENV["AIRB_MODEL"] || "gpt-4o-mini"
+            model:   ENV["AIRB_MODEL"] || "gpt-5-nano"
           )
         end
 

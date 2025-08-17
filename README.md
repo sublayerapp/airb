@@ -67,6 +67,8 @@ airb (top capsule)
 
 ### Install
 
+Requires Ruby 3.4+.
+
 Add to your app or install globally:
 
 ```bash
@@ -87,17 +89,17 @@ Pick one provider and set env vars:
 # OpenAI (streaming + tools)
 export AIRB_PROVIDER=openai
 export OPENAI_API_KEY=sk-...
-export AIRB_MODEL=gpt-4o-mini   # or your preferred model
+export AIRB_MODEL=gpt-5-nano   # default if unset
 
 # Anthropic (streaming + tool_use)
 # export AIRB_PROVIDER=anthropic
 # export ANTHROPIC_API_KEY=...
-# export AIRB_MODEL=claude-3-5-sonnet-latest
+# export AIRB_MODEL=claude-sonnet-4-0   # default if unset
 
 # Gemini (MVP: non-streaming tool calls)
 # export AIRB_PROVIDER=gemini
 # export GEMINI_API_KEY=...
-# export AIRB_MODEL=gemini-2.0-flash-001
+# export AIRB_MODEL=gemini-2.5-flash    # default if unset
 ```
 
 ### Quickstart

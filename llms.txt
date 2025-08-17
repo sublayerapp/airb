@@ -24,9 +24,9 @@ High-level mission
 
 Project at a glance
 -------------------
-- Language: Ruby 3.2+
+- Language: Ruby 3.4+
 - Runtime: `vsm` gem (async reactor, Capsules, VSM systems, tools-as-capsules)
-- Providers (from `vsm`): OpenAI (`DriverAsync`), Anthropic (`DriverAsync`), Gemini (`DriverAsync`)
+- Providers (from `vsm`): OpenAI (`AsyncDriver`), Anthropic (`AsyncDriver`), Gemini (`AsyncDriver`)
 - Core tools (capsules): `list_files`, `read_file`, `edit_file`
 - Observability: JSONL ledger + optional **Lens** (local SSE web app)
 - Terminal UI: `ChatTTY` (streams deltas, handles confirmations)
@@ -36,7 +36,7 @@ Project at a glance
 Directory layout (airb)
 -----------------------
 ```
-bin/airb                       # executable
+exe/airb                       # executable
 lib/airb.rb                    # CLI entry; starts capsule + ports + optional Lens
 lib/airb/organism.rb           # builds the top-level capsule via VSM::DSL
 
@@ -202,7 +202,7 @@ end
 
 ```ruby
 operations do
-  capsule :search_repo, class: SearchRepo
+  capsule :search_repo, klass: SearchRepo
 end
 ```
 
@@ -274,7 +274,7 @@ If conflicted, prefer **safer behavior** (ask for confirmation, maintain invaria
 
 Quick reference: critical files
 -------------------------------
-- Entry: `bin/airb`, `lib/airb.rb`
+- Entry: `exe/airb`, `lib/airb.rb`
 - Organism wiring: `lib/airb/organism.rb`
 - CLI Port: `lib/airb/ports/chat_tty.rb`
 - Intelligence: `lib/airb/systems/intelligence.rb`
