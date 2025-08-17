@@ -14,8 +14,13 @@ RSpec.configure do |config|
     c.syntax = :expect
   end
 
-  # Mock VSM drivers to prevent external API calls in tests
+  # Set fake API keys to prevent ENV.fetch errors and clean up test files
   config.before(:each) do
+    # Set fake API keys in environment to prevent KeyError
+    ENV["OPENAI_API_KEY"] = "fake-test-key"
+    ENV["ANTHROPIC_API_KEY"] = "fake-test-key"
+    ENV["GEMINI_API_KEY"] = "fake-test-key"
+
     # Create a fake driver that doesn't make real API calls
     fake_driver = instance_double("VSM::Driver")
     allow(fake_driver).to receive(:run!).and_yield(:assistant_final, "Mocked response")
@@ -24,16 +29,13 @@ RSpec.configure do |config|
     allow(VSM::Drivers::OpenAI::AsyncDriver).to receive(:new).and_return(fake_driver)
     allow(VSM::Drivers::Anthropic::AsyncDriver).to receive(:new).and_return(fake_driver)
     allow(VSM::Drivers::Gemini::AsyncDriver).to receive(:new).and_return(fake_driver)
-
-    # Also set fake API keys to prevent ENV.fetch errors
-    allow(ENV).to receive(:fetch).with("OPENAI_API_KEY").and_return("fake-key")
-    allow(ENV).to receive(:fetch).with("ANTHROPIC_API_KEY").and_return("fake-key") 
-    allow(ENV).to receive(:fetch).with("GEMINI_API_KEY").and_return("fake-key")
-    allow(ENV).to receive(:fetch).and_call_original
   end
 
-  # Clean up test files after each test
+  # Clean up test files and environment after each test
   config.after(:each) do
     File.delete("tmp.txt") if File.exist?("tmp.txt")
+    ENV.delete("OPENAI_API_KEY")
+    ENV.delete("ANTHROPIC_API_KEY")
+    ENV.delete("GEMINI_API_KEY")
   end
 end
