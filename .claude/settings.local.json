@@ -4,7 +4,8 @@
       "Bash(rake spec:*)",
       "Bash(bundle install:*)",
       "Bash(bundle exec:*)",
-      "Bash(gem install:*)"
+      "Bash(gem install:*)",
+      "Bash(bundle show:*)"
     ],
     "deny": [],
     "ask": []
