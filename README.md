@@ -37,7 +37,7 @@ A CLI programming agent that:
   - `read_file(path)` — read UTF‑8 text files
   - `edit_file(path, old_str, new_str)` — replace/create with confirmation
 
-- **Runs on a VSM engine** (via the vsm gem):
+- **Runs on a VSM engine** (via the [vsm gem](https://github.com/sublayerapp/vsm)):
   - Operations — dispatches tool calls; concurrency per tool
   - Coordination — session floor control & turn lifecycle
   - Intelligence — LLM driver + conversation + streaming
